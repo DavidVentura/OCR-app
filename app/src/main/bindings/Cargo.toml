@@ -1,0 +1,20 @@
+[package]
+name = "ocr_bindings"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+name = "ocr_bindings"
+path = "src/lib.rs"
+
+[dependencies]
+image = "0.25.10"
+jni = "0.21.1"
+ocr-rs = { path = "../../../../third_party/rust-paddle-ocr", features = ["build-mnn-from-source", "vulkan"] }
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+debug = false
+strip = true
