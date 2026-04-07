@@ -14,4 +14,4 @@ You can drag over text to select a bit of it, like on google lens.
 
 ![OCR result](pics/Screenshot_20260406-202219_OCR.png)
 
-![OCR result](pics/Screenshot_20260406-202219_OCR.png)
+![Drag feature](pics/text_select.jpg)
