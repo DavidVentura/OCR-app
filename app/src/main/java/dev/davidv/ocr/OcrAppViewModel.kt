@@ -67,6 +67,7 @@ data class OcrUiState(
     ),
     val selectedScriptId: String? = null,
     val selectedImageUri: Uri? = null,
+    val recognitionResult: OcrRecognitionResult? = null,
     val recognizedText: String = "",
     val isRunningOcr: Boolean = false,
     val errorMessage: String? = null,
@@ -117,6 +118,8 @@ class OcrAppViewModel(application: Application) : AndroidViewModel(application) 
     fun onImagePicked(uri: Uri?) {
         uiState = uiState.copy(
             selectedImageUri = uri,
+            recognitionResult = null,
+            recognizedText = "",
             errorMessage = null,
         )
         if (uri != null && selectedScript() != null) {
@@ -127,6 +130,8 @@ class OcrAppViewModel(application: Application) : AndroidViewModel(application) 
     fun onSharedImageReceived(uri: Uri) {
         uiState = uiState.copy(
             selectedImageUri = uri,
+            recognitionResult = null,
+            recognizedText = "",
             errorMessage = null,
             returnToUseAppOnBack = false,
             screen = if (uiState.assetState.canRunOcr) RootScreen.UseApp else RootScreen.ManageFiles,
@@ -137,7 +142,12 @@ class OcrAppViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun onScriptSelected(scriptId: String) {
-        uiState = uiState.copy(selectedScriptId = scriptId, errorMessage = null)
+        uiState = uiState.copy(
+            selectedScriptId = scriptId,
+            recognitionResult = null,
+            recognizedText = "",
+            errorMessage = null,
+        )
         if (uiState.selectedImageUri != null) {
             runOcr()
         }
@@ -198,7 +208,12 @@ class OcrAppViewModel(application: Application) : AndroidViewModel(application) 
         val imageUri = uiState.selectedImageUri ?: return
 
         viewModelScope.launch {
-            uiState = uiState.copy(isRunningOcr = true, errorMessage = null, recognizedText = "")
+            uiState = uiState.copy(
+                isRunningOcr = true,
+                errorMessage = null,
+                recognitionResult = null,
+                recognizedText = "",
+            )
             val totalStartNanos = SystemClock.elapsedRealtimeNanos()
             val result = runCatching {
                 withContext(Dispatchers.IO) {
@@ -210,7 +225,7 @@ class OcrAppViewModel(application: Application) : AndroidViewModel(application) 
                     val imageReadMs = nanosToMillis(SystemClock.elapsedRealtimeNanos() - imageReadStartNanos)
 
                     val nativeStartNanos = SystemClock.elapsedRealtimeNanos()
-                    val recognizedText = OcrNativeBridge.recognize(
+                    val recognitionResult = OcrNativeBridge.recognize(
                         imageBytes = imageBytes,
                         detModelPath = fileStore.detectionModelPath(),
                         recModelPath = script.recModelPath,
@@ -224,14 +239,14 @@ class OcrAppViewModel(application: Application) : AndroidViewModel(application) 
                         "script=${script.label} imageReadMs=$imageReadMs nativeOcrMs=$nativeOcrMs imageBytes=${imageBytes.size}"
                     )
 
-                    recognizedText
+                    recognitionResult
                 }
             }
             val totalMs = nanosToMillis(SystemClock.elapsedRealtimeNanos() - totalStartNanos)
-            result.onSuccess { text ->
+            result.onSuccess { recognitionResult ->
                 Log.d(
                     OCR_LOG_TAG,
-                    "script=${script.label} totalOcrMs=$totalMs outputChars=${text.length}"
+                    "script=${script.label} totalOcrMs=$totalMs outputChars=${recognitionResult.text.length} blocks=${recognitionResult.blocks.size}"
                 )
             }.onFailure { error ->
                 Log.d(
@@ -242,7 +257,8 @@ class OcrAppViewModel(application: Application) : AndroidViewModel(application) 
 
             uiState = uiState.copy(
                 isRunningOcr = false,
-                recognizedText = result.getOrElse { "" },
+                recognitionResult = result.getOrNull(),
+                recognizedText = result.getOrNull()?.text.orEmpty(),
                 errorMessage = result.exceptionOrNull()?.message,
             )
         }

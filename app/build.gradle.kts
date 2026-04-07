@@ -28,6 +28,7 @@ val targetAbi = project.findProperty("targetAbi")?.toString() ?: "arm64-v8a"
 val bindingsRootDir = "src/main/bindings"
 val jniLibsOutputDir = "../jniLibs"
 val ndkPath = "${findAndroidSdkDir()}/ndk/$ndkVersionName"
+val bindingsOutputDir = layout.projectDirectory.dir("src/main/jniLibs/$targetAbi")
 
 android {
     namespace = "dev.davidv.ocr"
@@ -72,6 +73,14 @@ android {
 tasks.register("buildBindings") {
     group = "build"
     description = "Build Rust OCR bindings library for $targetAbi"
+    inputs.dir(layout.projectDirectory.dir(bindingsRootDir))
+    inputs.dir(layout.projectDirectory.dir("../third_party/rust-paddle-ocr/src"))
+    inputs.file(layout.projectDirectory.file("../third_party/rust-paddle-ocr/Cargo.toml"))
+    inputs.file(layout.projectDirectory.file("../third_party/rust-paddle-ocr/build.rs"))
+    inputs.property("targetAbi", targetAbi)
+    inputs.property("androidApiLevel", androidApiLevel)
+    inputs.property("ndkPath", ndkPath)
+    outputs.dir(bindingsOutputDir)
 
     doLast {
         exec {
